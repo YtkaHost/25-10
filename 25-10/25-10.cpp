@@ -1,184 +1,160 @@
-#include <iostream>
-#include <vector>
-#include <string>
-#include <map>
 #include <fstream>
+#include <iostream>
+#include <map>
+#include <string>
+#include <vector>
 
 class Main {
 private:
-    std::map<std::string, double> GPA;
-    std::map<std::string, double> attendance;
-    std::map<std::string, double> rating;
-    std::map<std::string, std::string> user;
-    std::map<std::string, std::string> name;
-    std::map<std::string, std::string> login;
-    std::map<std::string, std::string> password;
-    std::vector<int> assessments;
+  std::map<std::string,
+           std::pair<std::string, std::pair<double, std::vector<int>>>>
+      users;
 
-    void set_login(const std::string& new_login) {
-        login["user"] = new_login;
-    }
-    void set_password(const std::string& new_password) {
-        password["user"] = new_password;
-    }
-    void set_user() {
-        user[login["user"]] = password["user"];
-        set_all();
-    }
-    void set_name(const std::string& new_name) {
-        name["user"] = new_name;
-    }
-    void set_assessments(int new_assessment) {
-        assessments.push_back(new_assessment);
-    }
-    void set_attendance(double new_attendance) {
-        attendance["user"] = new_attendance;
-    }
-    void set_all() {
-        std::string set_string;
-        double set_double;
-        int set_user;
+  void set_user(std::string login, std::string password, std::string name, double attendance,  std::vector<int> assessments) {
+    users[login] = {password, {attendance, assessments}};
+  }
 
-        std::cout << "Name: " << std::endl;
-        std::cin >> set_string;
-        set_name(set_string);
-
-        std::cout << "Attendance: " << std::endl;
-        std::cin >> set_double;
-        set_attendance(set_double);
-
-        do {
-            std::cout << "Assessments: " << std::endl;
-            std::cin >> set_double;
-            set_assessments(static_cast<int>(set_double));
-            std::cout << "It's all? \n1 = yes\n2 = no" << std::endl;
-            std::cin >> set_user;
-        } while (set_user != 1);
+  double get_GPA(std::vector<int> assessments) {
+    double total = 0.0;
+    for (int assessment : assessments) {
+      total += assessment;
     }
+    return assessments.empty() ? 0 : total / assessments.size();
+  }
 
-    double get_GPA() {
-        double total = 0.0;
-        for (int assessment : assessments) {
-            total += assessment;
+  double get_rating(std::string login) {
+    const auto &user_data = users[login];
+    double GPA = get_GPA(user_data.second.second);
+    return GPA * user_data.second.first;
+  }
+
+  void save_data() {
+    std::ofstream out_file("data.txt",
+                           std::ios::app);
+    if (out_file.is_open()) {
+      for (auto user : users) {
+        out_file << user.first << " "                
+                 << user.second.first << " "      
+                 << user.second.second.first << " ";
+        for (int assessment : user.second.second.second) {
+          out_file << assessment << " ";
         }
-        if (assessments.empty()) {
-            GPA["user"] = 0;
-        } else {
-            GPA["user"] = total / assessments.size();
+        out_file << std::endl;
+      }
+      out_file.close();
+    } else {
+      std::cerr << "Unable to open file for writing!" << std::endl;
+    }
+  }
+
+  void load_data() {
+    std::ifstream in_file("data.txt");
+    if (in_file.is_open()) {
+      std::string temp_login, temp_password;
+      double temp_attendance;
+      int temp_assessment;
+
+      while (in_file >> temp_login >> temp_password >> temp_attendance) {
+        std::vector<int> assessments;
+        while (in_file.peek() != '\n' && in_file >> temp_assessment) {
+          assessments.push_back(temp_assessment);
         }
-        return GPA["user"];
+        set_user(temp_login, temp_password, "", temp_attendance, assessments);
+      }
+
+      in_file.close();
+    } else {
+      std::cerr << "Unable to open file for reading!" << std::endl;
     }
-
-    double get_rating() {
-        rating["user"] = get_GPA() * attendance["user"];
-        return rating["user"];
-    }
-
-    void save_data() {
-        std::ofstream out_file("data.txt");
-        if (out_file.is_open()) {
-            out_file << login["user"] << " " << password["user"] << " " << name["user"] << " " << attendance["user"] << " ";
-            for (int assessment : assessments) {
-                out_file << assessment << " ";
-            }
-            out_file << std::endl;
-            out_file.close();
-        } else {
-            std::cerr << "Unable to open file for writing!" << std::endl;
-        }
-    }
-
-    void load_data() {
-        std::ifstream in_file("data.txt");
-        if (in_file.is_open()) {
-            std::string temp_login, temp_password, temp_name;
-            double temp_attendance;
-            int temp_assessment;
-
-            in_file >> temp_login >> temp_password >> temp_name >> temp_attendance;
-
-            login["user"] = temp_login;
-            password["user"] = temp_password;
-            name["user"] = temp_name;
-            attendance["user"] = temp_attendance;
-
-            while (in_file >> temp_assessment) {
-                assessments.push_back(temp_assessment);
-            }
-
-            in_file.close();
-        } else {
-            std::cerr << "Unable to open file for reading!" << std::endl;
-        }
-    }
+  }
 
 public:
-    void registration() {
-        std::string temp;
+  void registration() {
+    std::string temp_login, temp_password, temp_name;
+    double temp_attendance;
+    std::vector<int> assessments;
 
-        std::cout << "Login: " << std::endl;
-        std::cin >> temp;
-        set_login(temp);
+    std::cout << "Login: " << std::endl;
+    std::cin >> temp_login;
 
-        std::cout << "Password: " << std::endl;
-        std::cin >> temp;
-        set_password(temp);
-
-        set_user();
-        save_data();
+    if (users.find(temp_login) != users.end()) {
+      std::cout << "User already exists!" << std::endl;
+      return;
     }
 
-    void open() {
-        std::string temp_login;
-        std::string temp_password;
+    std::cout << "Password: " << std::endl;
+    std::cin >> temp_password;
 
-        std::cout << "Write login: " << std::endl;
-        std::cin >> temp_login;
+    std::cout << "Name: " << std::endl;
+    std::cin >> temp_name;
 
-        std::cout << "Write password: " << std::endl;
-        std::cin >> temp_password;
+    std::cout << "Attendance: " << std::endl;
+    std::cin >> temp_attendance;
 
-        load_data();
-        if (user[temp_login] == temp_password) {
-            std::cout << "Login successful!" << std::endl;
-        } else {
-            std::cout << "Incorrect login or password!" << std::endl;
-        }
+    int choice;
+    do {
+      int assessment;
+      std::cout << "Assessments: " << std::endl;
+      std::cin >> assessment;
+      assessments.push_back(assessment);
+      std::cout << "Add more assessments? \n1 = yes\n2 = no" << std::endl;
+      std::cin >> choice;
+    } while (choice == 1);
+
+    set_user(temp_login, temp_password, temp_name, temp_attendance,
+             assessments);
+    save_data();
+  }
+
+  void open() {
+    std::string temp_login, temp_password;
+
+    std::cout << "Write login: " << std::endl;
+    std::cin >> temp_login;
+
+    std::cout << "Write password: " << std::endl;
+    std::cin >> temp_password;
+
+    if (users.find(temp_login) != users.end() &&
+        users[temp_login].first == temp_password) {
+      std::cout << "Login successful!" << std::endl;
+      show_main(temp_login);
+    } else {
+      std::cout << "Incorrect login or password!" << std::endl;
     }
+  }
 
-    void start() {
-        int choice;
+  void start() {
+    load_data();
+    int choice;
 
-        std::cout << "Hello, new? \n1 - registration\n2 - entrance" << std::endl;
-        std::cin >> choice;
+    do {
+      std::cout << "Hello, new? \n1 - registration\n2 - entrance\n3 - exit"<< std::endl;
+      std::cin >> choice;
+      switch (choice) {
+      case 1:
+        registration();
+        break;
+      case 2:
+        open();
+        break;
+      case 3:
+        break;
+      default:
+        std::cout << "Invalid choice!" << std::endl;
+        break;
+      }
+    } while (choice != 3);
+  }
 
-        switch (choice) {
-        case 1:
-            registration();
-            break;
-        case 2:
-            open();
-            break;
-        default:
-            std::cout << "Invalid choice!" << std::endl;
-            break;
-        }
-
-        int choise = 0;
-        do {
-            choise = 0;
-            std::cout << "Continue? \n1 - registration new\n2 - entrance" << std::endl;
-            std::cin >> choice;
-        } while (choise != 1);
-    }
-
-    void show_main() {
-        std::cout << "User: " << name["user"] << "\nGPA: " << get_GPA() << "\nRating: " << get_rating() << std::endl;
-    }
+  void show_main(const std::string &login) {
+    const auto &user_data = users[login];
+    std::cout << "User: " << login << "\nGPA: " << get_GPA(user_data.second.second) << "\nRating: " << get_rating(login) << std::endl;
+  }
 };
 
 int main() {
-    Main app;
-    app.start();
-    return 0;
+  Main app;
+  app.start();
+  return 0;
 }
