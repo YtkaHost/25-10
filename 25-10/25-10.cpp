@@ -30,7 +30,7 @@ private:
     return total / assessments.size();
   }
 
-  double get_rating(std::string login) {A
+  double get_rating(std::string login) {
     const auto &user_data = users[login];
     double GPA = get_GPA(user_data.assessments);
     return GPA * user_data.attendance;
